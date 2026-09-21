@@ -1,0 +1,877 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="하루 한 장">
+<meta name="theme-color" content="#F4F5F2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#15181A" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<title>하루 한 장</title>
+<style>
+@font-face{
+  font-family:'Ryuttung';
+  src:local('온글잎 류뚱체'), local('Ownglyph ryuttungRg'), url('ryuttung.woff2') format('woff2');
+  font-display:swap;
+}
+:root{
+  --bg:#F4F5F2; --surface:#FFFFFF; --ink:#242B2E; --dim:#7C858A;
+  --line:#E0E3DE; --line-soft:#EDEFEA; --accent:#C0503C; --accent-soft:#F2DED9;
+  --done:#A9B0AC;
+}
+:root:not([data-theme="light"]){ }
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#15181A; --surface:#1D2124; --ink:#E7EAE6; --dim:#8B938F;
+    --line:#2B3033; --line-soft:#232829; --accent:#E48067; --accent-soft:#3A2722;
+    --done:#5E6664;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#15181A; --surface:#1D2124; --ink:#E7EAE6; --dim:#8B938F;
+  --line:#2B3033; --line-soft:#232829; --accent:#E48067; --accent-soft:#3A2722;
+  --done:#5E6664;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:'Ryuttung','온글잎 류뚱체',-apple-system,BlinkMacSystemFont,sans-serif;
+  font-size:19px; line-height:1.6; -webkit-font-smoothing:antialiased;
+}
+button,input,textarea{font:inherit; color:inherit}
+button{background:none;border:none;cursor:pointer;padding:0}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:4px}
+
+.wrap{max-width:720px; margin:0 auto; padding:0 14px 140px}
+
+/* ── 로그인 ── */
+.gate{
+  position:fixed; inset:0; z-index:20; display:grid; place-items:center;
+  background:var(--bg); padding:24px;
+}
+.gate[hidden]{display:none}
+.gate-box{width:100%; max-width:330px; text-align:center}
+.gate-box img{border-radius:16px; margin-bottom:14px}
+.gate-box h1{margin:0 0 10px; font-size:30px; font-weight:400}
+.gate-lead{margin:0 0 22px; color:var(--dim); font-size:17px; line-height:1.65}
+.gate form{display:flex; flex-direction:column; gap:10px}
+.gate input{
+  background:var(--surface); border:1px solid var(--line); border-radius:12px;
+  padding:11px 14px; text-align:center;
+}
+.gate input:focus{border-color:var(--accent); outline:none}
+.gate button{
+  background:var(--ink); color:var(--bg); border-radius:12px; padding:11px 14px;
+}
+.gate button:disabled{opacity:.5; cursor:default}
+.gate-msg{margin:16px 0 0; min-height:1.6em; color:var(--dim); font-size:16px; line-height:1.6}
+.gate-msg.bad{color:var(--accent)}
+body.locked .wrap, body.locked .bar{display:none}
+
+/* ── 헤더 ── */
+header{
+  position:sticky; top:0; z-index:5; background:var(--bg);
+  padding:18px 0 10px; border-bottom:1px solid var(--line-soft);
+}
+header.month-view{position:static}   /* 월간은 키가 커서 고정하면 목록을 덮는다 */
+
+/* 월간은 한 달을 훑어보는 화면 — 그날의 상세와 입력은 감추고 달력에 자리를 준다 */
+.month-mode .dayhead,
+.month-mode #list,
+.month-mode .note-wrap,
+.month-mode .bar{display:none}
+.month-mode .wrap{padding-bottom:28px}
+.month-mode header{padding-bottom:0; border-bottom:none}
+.hrow{display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:12px}
+.month{font-size:26px; letter-spacing:.01em}
+.hbtns{display:flex; gap:4px; align-items:center}
+.nav{width:34px; height:34px; border-radius:8px; color:var(--dim); font-size:20px; line-height:1}
+.nav:hover{background:var(--line-soft); color:var(--ink)}
+.today-btn{padding:4px 12px; border-radius:999px; border:1px solid var(--line); color:var(--dim); font-size:16px}
+.today-btn:hover{border-color:var(--accent); color:var(--accent)}
+
+.strip{display:grid; grid-template-columns:repeat(7,1fr); gap:2px}
+.day{
+  display:flex; flex-direction:column; align-items:center; gap:2px;
+  padding:6px 0 7px; border-radius:10px; color:var(--dim); font-size:15px;
+}
+.day:hover{background:var(--line-soft)}
+.day .dn{font-size:20px; color:var(--ink); font-variant-numeric:tabular-nums}
+.day.sun .dn, .day.sun, .day.holiday .dn{color:var(--accent)}
+.day.sel{background:var(--ink)}
+.day.sel .dn,.day.sel{color:var(--bg)}
+.day.today .dn{text-decoration:underline; text-underline-offset:3px; text-decoration-thickness:2px}
+.dots{display:flex; gap:2px; height:5px; align-items:center}
+.dot{width:4px; height:4px; border-radius:50%; background:var(--dim); opacity:.55}
+.dot.note{background:var(--accent); opacity:1}
+.day.sel .dot{background:var(--bg)}
+
+/* ── 월간 달력 ── */
+.mhead{display:grid; grid-template-columns:repeat(7,1fr); gap:2px; margin-bottom:5px}
+.mhead span{text-align:center; font-size:14px; color:var(--dim)}
+.mhead span:first-child{color:var(--accent)}
+.mgrid{display:grid; grid-template-columns:repeat(7,1fr); gap:2px}
+.mday{
+  position:relative; aspect-ratio:3/4; overflow:hidden; border-radius:9px;
+  background:var(--line-soft); color:var(--dim); font-size:15px;
+}
+.mday:hover{filter:brightness(1.06)}
+.mday img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover}
+.mday .dn{
+  position:absolute; top:4px; left:7px;
+  font-size:16px; color:var(--ink); font-variant-numeric:tabular-nums;
+}
+.mday.sun .dn, .mday.holiday .dn{color:var(--accent)}
+/* 사진이 깔린 칸은 어떤 사진에서도 날짜가 읽히도록 흰 글자에 그늘을 준다 */
+.mday.has-photo .dn, .mday.has-photo.sun .dn, .mday.has-photo.holiday .dn{color:#fff; text-shadow:0 1px 4px rgba(0,0,0,.75)}
+.mday.other{opacity:.32}
+.mday.today .dn{text-decoration:underline; text-underline-offset:3px; text-decoration-thickness:2px}
+.mday.sel{outline:2px solid var(--ink); outline-offset:-2px}
+.mday .dots{position:absolute; left:0; right:0; bottom:6px; justify-content:center}
+.mday.has-photo .dots{display:none}       /* 사진이 이미 그날을 말해준다 */
+
+/* ── 날짜 제목 ── */
+.dayhead{display:flex; align-items:baseline; gap:10px; margin:26px 0 6px}
+.dayhead h1{margin:0; font-size:30px; font-weight:400; letter-spacing:.01em}
+.dayhead .rel{font-size:16px; color:var(--dim)}
+
+/* ── 항목 ── */
+.sec + .sec{margin-top:20px}
+.sec.notes:not(:first-child){position:relative; margin-top:26px; padding-top:24px}
+/* 손으로 그은 듯한 구분선 — 마스크로 씌워 테마 색(--line)을 따라가게 한다 */
+.sec.notes:not(:first-child)::before{
+  content:''; position:absolute; top:0; left:0; right:0; height:6px;
+  background:var(--dim); opacity:.4;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='132' height='6' viewBox='0 0 132 6'%3E%3Cpath d='M0 3 C 16 1.9, 28 4.1, 44 3.1 S 72 1.8, 88 3 S 116 4.2, 132 3' fill='none' stroke='%23000' stroke-width='1.2' stroke-linecap='round'/%3E%3C/svg%3E") repeat-x left center;
+  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='132' height='6' viewBox='0 0 132 6'%3E%3Cpath d='M0 3 C 16 1.9, 28 4.1, 44 3.1 S 72 1.8, 88 3 S 116 4.2, 132 3' fill='none' stroke='%23000' stroke-width='1.2' stroke-linecap='round'/%3E%3C/svg%3E") repeat-x left center;
+}
+ul{list-style:none; margin:0; padding:0}
+li{
+  display:flex; align-items:flex-start; gap:7px;
+  padding:9px 2px 9px 0;
+}
+li.note{padding:5px 2px 12px 0; gap:8px}
+li.note .txt{
+  position:relative; flex:0 1 auto; white-space:pre-wrap; color:var(--ink);
+  background:var(--surface); border:1px solid var(--line);
+  border-radius:18px 18px 18px 6px;
+  padding:9px 15px 9px 39px; text-indent:-24px;   /* 하트 기준 내어쓰기 */
+}
+li.note .txt::after{                      /* 생각풍선 꼬리 */
+  content:''; position:absolute; left:3px; bottom:-8px;
+  width:8px; height:8px; border-radius:50%;
+  background:var(--surface); border:1px solid var(--line);
+}
+.heart{display:inline-block; width:24px; color:var(--accent); font-size:17px; text-indent:0}
+.sec:last-child li.note:last-child{padding-bottom:4px}
+li.note .edit{margin-left:auto; align-self:center}
+li.note .del{align-self:center}
+li.note.editing .edit-in{margin-top:4px}
+.check{
+  position:relative; flex:none; width:23px; height:23px; margin-top:3px; border-radius:6px;
+  border:1.5px solid var(--line); display:grid; place-items:center;
+  color:transparent; font-size:15px; line-height:1;
+}
+.check::after{content:''; position:absolute; inset:-11px}   /* 터치 영역 45px */
+li.tappable{cursor:pointer; -webkit-tap-highlight-color:transparent}
+li.tappable:active{background:var(--line-soft)}
+.check:hover{border-color:var(--accent)}
+li.done .check{background:var(--accent-soft); border-color:transparent; color:var(--accent)}
+.time{
+  flex:none; width:80px; border:none; background:none; color:var(--accent);
+  font-variant-numeric:tabular-nums; font-size:17px; padding:1px 0 0;
+}
+input.time{cursor:pointer}
+input[type=time]::-webkit-calendar-picker-indicator{display:none}
+input.time.unset{
+  color:var(--dim); border:1px dashed var(--line); border-radius:8px; padding:0 6px;
+}
+input.time.unset:hover, input.time:focus{color:var(--accent); border-color:var(--accent)}
+.txt{flex:1; word-break:break-word; padding-top:1px}
+li.done .txt{color:var(--done); text-decoration:line-through; text-decoration-color:var(--accent)}
+li.done .time{color:var(--done)}
+.del{flex:none; color:var(--dim); font-size:19px; padding:0 4px; line-height:1.3}
+.edit{flex:none; color:var(--dim); font-size:17px; padding:0 3px; line-height:1.5}
+.del:hover, .edit:hover{color:var(--accent)}
+.edit-in{
+  flex:1; min-width:0; background:var(--surface); color:var(--ink);
+  border:1px solid var(--accent); border-radius:12px; padding:7px 13px;
+  line-height:1.6; resize:vertical;
+}
+textarea.edit-in{min-height:76px}
+
+.empty{margin:0; padding:38px 0; color:var(--dim); text-align:center; font-size:18px}
+
+/* ── 사진 ── */
+.photo{display:block; margin-top:9px; max-width:100%; max-height:340px;
+  border-radius:12px; object-fit:cover; text-indent:0}
+.uploading{display:block; margin-top:7px; font-size:16px; color:var(--dim); text-indent:0}
+.pv{display:flex; align-items:center; gap:10px; margin-top:10px}
+.pv img{width:56px; height:56px; object-fit:cover; border-radius:9px}
+.pv .del{font-size:21px}
+
+/* ── 메모 ── */
+.note-wrap{margin-top:30px}
+.label{font-size:16px; color:var(--dim); margin-bottom:6px}
+textarea{
+  width:100%; min-height:96px; resize:vertical; background:var(--surface);
+  border:1px solid var(--line); border-radius:12px; padding:12px 14px;
+  line-height:1.7;
+}
+textarea::placeholder{color:var(--dim); opacity:.7}
+.note-foot{display:flex; justify-content:flex-end; align-items:center; gap:10px; margin-top:8px}
+.save-btn{
+  padding:5px 16px; border-radius:999px; border:1px solid var(--line);
+  color:var(--dim); font-size:17px;
+}
+.save-btn:hover{border-color:var(--accent); color:var(--accent)}
+.icon-btn{width:36px; height:36px; padding:0; border-radius:11px; display:grid; place-items:center}
+.icon-btn[hidden]{display:none}   /* display:grid가 hidden을 덮어쓰지 않도록 */
+
+/* ── 입력 바 ── */
+.bar{
+  position:fixed; left:0; right:0; bottom:0; background:var(--bg);
+  border-top:1px solid var(--line); padding:10px 18px calc(10px + env(safe-area-inset-bottom));
+}
+.bar-in{
+  max-width:540px; margin:0 auto; display:flex; gap:8px; align-items:center;
+  background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:8px 14px 8px 10px;
+}
+.bar input[type=time]{
+  width:94px; border:none; background:none; color:var(--dim);
+  font-size:17px; font-variant-numeric:tabular-nums; padding:0;
+}
+.bar input[type=time]:focus{color:var(--accent)}
+.bar input[type=text]{
+  flex:1; border:none; background:none; min-width:0; padding:4px 0 4px 12px;
+  border-left:1px solid var(--line);
+}
+.bar input[type=text]::placeholder{color:var(--dim); opacity:.75}
+.banner{
+  margin:14px 0 0; padding:10px 14px; border-radius:10px;
+  background:var(--accent-soft); color:var(--accent); font-size:16px;
+}
+@media (prefers-reduced-motion:no-preference){
+  .day,.check,.nav{transition:background .12s ease, color .12s ease, border-color .12s ease}
+}
+</style>
+</head>
+<body>
+
+<div class="gate" id="gate" hidden>
+  <div class="gate-box">
+    <img src="icon-180.png" alt="" width="72" height="72">
+    <h1>하루 한 장</h1>
+    <p class="gate-lead">메일로 로그인 링크를 보내 드립니다.<br>한 번 누르면 계속 로그인 상태로 남습니다.</p>
+    <form id="loginForm">
+      <input type="email" id="email" placeholder="메일 주소" autocomplete="email" required>
+      <button type="submit" id="loginBtn">로그인 링크 받기</button>
+    </form>
+    <p class="gate-msg" id="gateMsg"></p>
+  </div>
+</div>
+
+<div class="wrap">
+  <header>
+    <div class="hrow">
+      <div class="month" id="month"></div>
+      <div class="hbtns">
+        <button class="today-btn" id="viewBtn"></button>
+        <button class="nav" id="prev" aria-label="이전">‹</button>
+        <button class="today-btn" id="today">오늘</button>
+        <button class="nav" id="next" aria-label="다음">›</button>
+      </div>
+    </div>
+    <div id="cal"></div>
+  </header>
+
+  <div id="banner"></div>
+
+  <div class="dayhead">
+    <h1 id="title"></h1>
+    <span class="rel" id="rel"></span>
+  </div>
+
+  <div id="list"></div>
+
+  <div class="note-wrap">
+    <div class="label">그날의 기록</div>
+    <textarea id="note" placeholder="오늘 어땠는지 한두 줄."></textarea>
+    <div id="photoPreview"></div>
+    <div class="note-foot">
+      <button class="save-btn icon-btn" id="photoBtn" aria-label="사진 넣기" title="사진 넣기" hidden>
+        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor"
+             stroke-width="1.6" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3.2" y="5.2" width="17.6" height="13.6" rx="2.4"/>
+          <circle cx="8.6" cy="10" r="1.5"/>
+          <path d="M4.2 17.4 9 12.8l3.2 3 3.4-3.4 4.2 4"/>
+        </svg>
+      </button>
+      <button class="save-btn icon-btn" id="saveNote" aria-label="기록 저장" title="기록 저장">
+        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor"
+             stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true">
+          <path d="M5 3.8h10.6L20.2 8.4V19a1.2 1.2 0 0 1-1.2 1.2H5A1.2 1.2 0 0 1 3.8 19V5A1.2 1.2 0 0 1 5 3.8Z"/>
+          <path d="M8 3.8v5.4h7V3.8"/>
+          <path d="M7.4 20.2v-6.4h9.2v6.4"/>
+        </svg>
+      </button>
+    </div>
+    <input type="file" id="photoInput" accept="image/*" hidden>
+  </div>
+</div>
+
+<div class="bar">
+  <form class="bar-in" id="form">
+    <input type="time" id="time" aria-label="시간 (비우면 할 일)">
+    <input type="text" id="text" placeholder="무엇을 할까요" autocomplete="off">
+  </form>
+</div>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
+
+const SUPABASE_URL = 'https://uexetbzmpfqnrjzdnmfz.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_QGrahkpLkXcO_X5p7V0tBA_9k6aSMRa';
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+const photoUrl = path => `${SUPABASE_URL}/storage/v1/object/public/photos/${path}`;
+
+for (const [name, content] of [['apple-mobile-web-app-title', '하루 한 장'],
+                               ['apple-mobile-web-app-capable', 'yes'],
+                               ['apple-mobile-web-app-status-bar-style', 'default']]) {
+  document.head.appendChild(Object.assign(document.createElement('meta'), { name, content }));
+}
+
+
+const pad = n => String(n).padStart(2, '0');
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const parse = s => { const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); };
+const shift = (s, n) => { const d = parse(s); d.setDate(d.getDate()+n); return ymd(d); };
+// 일요일 시작 주
+const weekStart = s => { const d = parse(s); d.setDate(d.getDate() - d.getDay()); return ymd(d); };
+const monthLast = s => { const d = parse(s); return ymd(new Date(d.getFullYear(), d.getMonth()+1, 0)); };
+// 달을 옮길 때 그 달에 없는 날짜(31일 → 2월)는 말일로 당긴다
+const addMonth = (s, n) => {
+  const d = parse(s), day = d.getDate();
+  d.setDate(1); d.setMonth(d.getMonth() + n);
+  d.setDate(Math.min(day, new Date(d.getFullYear(), d.getMonth()+1, 0).getDate()));
+  return ymd(d);
+};
+// 시간 있는 항목(일정)이 위, 시간순. 시간 없는 항목(할 일)은 추가한 순서 그대로 아래.
+const sortItems = items => [...items].sort((a,b) =>
+  (a.time?0:1) - (b.time?0:1) || (a.time||'').localeCompare(b.time||''));
+
+// 대한민국 공휴일. 설날·추석·부처님오신날은 음력이라 계산 대신 적어 둔다.
+// 제헌절(7/17)은 2008년부터 공휴일이 아니라 넣지 않았다.
+const HOLIDAYS = {
+  '2026-01-01':'신정',
+  '2026-02-16':'설날 연휴', '2026-02-17':'설날', '2026-02-18':'설날 연휴',
+  '2026-03-01':'삼일절', '2026-03-02':'삼일절 대체공휴일',
+  '2026-05-05':'어린이날',
+  '2026-05-24':'부처님오신날', '2026-05-25':'부처님오신날 대체공휴일',
+  '2026-06-06':'현충일',
+  '2026-08-15':'광복절', '2026-08-17':'광복절 대체공휴일',
+  '2026-09-24':'추석 연휴', '2026-09-25':'추석', '2026-09-26':'추석 연휴',
+  '2026-10-03':'개천절', '2026-10-05':'개천절 대체공휴일',
+  '2026-10-09':'한글날',
+  '2026-12-25':'성탄절',
+
+  '2027-01-01':'신정',
+  '2027-02-06':'설날 연휴', '2027-02-07':'설날', '2027-02-08':'설날 연휴',
+  '2027-02-09':'설날 대체공휴일',
+  '2027-03-01':'삼일절',
+  '2027-05-05':'어린이날',
+  '2027-05-13':'부처님오신날',
+  '2027-06-06':'현충일', '2027-06-07':'현충일 대체공휴일',
+  '2027-08-15':'광복절', '2027-08-16':'광복절 대체공휴일',
+  '2027-09-14':'추석 연휴', '2027-09-15':'추석', '2027-09-16':'추석 연휴',
+  '2027-10-03':'개천절', '2027-10-04':'개천절 대체공휴일',
+  '2027-10-09':'한글날', '2027-10-11':'한글날 대체공휴일',
+  '2027-12-25':'성탄절', '2027-12-27':'성탄절 대체공휴일',
+};
+
+
+if (location.search.includes('test')) {
+  console.assert(weekStart('2026-09-20') === '2026-09-20', '일요일');
+  console.assert(weekStart('2026-09-21') === '2026-09-20', '월요일은 직전 일요일');
+  console.assert(weekStart('2026-09-26') === '2026-09-20', '토요일은 같은 주');
+  console.assert(weekStart('2026-09-27') === '2026-09-27', '다음 일요일 경계');
+  console.assert(shift('2026-02-28', 1) === '2026-03-01', '월 넘김');
+  console.assert(shift('2026-01-01', -1) === '2025-12-31', '해 넘김');
+  console.assert(monthLast('2026-02-10') === '2026-02-28', '말일');
+  console.assert(HOLIDAYS['2026-09-25'] === '추석', '공휴일 표');
+  console.assert(!HOLIDAYS['2026-07-17'], '제헌절은 공휴일이 아니다');
+  console.assert(addMonth('2026-01-31', 1) === '2026-02-28', '없는 날짜는 말일로');
+  console.assert(addMonth('2026-03-15', -1) === '2026-02-15', '이전 달');
+  console.assert(addMonth('2026-12-05', 1) === '2027-01-05', '해 넘김(월)');
+  console.assert(sortItems([{id:1},{id:2,time:'14:00'},{id:3,kind:'note'},{id:4,time:'09:00'}])
+    .map(i=>i.id).join() === '4,2,1,3', '정렬');
+  console.log('self-check 통과');
+}
+
+const DOW = ['일','월','화','수','목','금','토'];
+const el = id => document.getElementById(id);
+const todayStr = () => ymd(new Date());
+
+let uid = null;
+let cur = todayStr();
+let view = 'week';
+try { view = localStorage.getItem('view') === 'month' ? 'month' : 'week'; } catch {}
+let subKey = null;
+let editingId = null;            // 지금 고쳐 쓰는 항목
+let photoPick = null;            // 저장 전에 고른 사진 (아직 업로드 안 함)
+const uploading = new Set();     // 업로드 중인 기록 id
+let week = {};              // 'YYYY-MM-DD' -> {date, items, note}
+let chain = Promise.resolve();
+const pending = new Set();      // 저장이 아직 확정되지 않은 날짜
+
+const dayOf = d => (week[d] ||= { date: d, items: [], note: '' });
+// 스냅샷이 도착하면 그 날짜의 객체가 통째로 갈린다. 붙잡고 있던 참조에 쓰면
+// 화면 데이터에서 떨어져 나간 헌 객체에 쓰는 셈이라, 항상 id로 다시 찾는다.
+const findItem = (date, id) => dayOf(date).items.find(x => x.id === id);
+
+function commitEdit(id, value) {
+  const t = findItem(cur, id);
+  editingId = null;
+  const v = value.trim();
+  if (t && (v || t.photo) && v !== t.text) { t.text = v; save(cur); }
+  render();
+}
+
+// 보고 있는 범위 — 주간은 그 주, 월간은 그 달
+const range = () => view === 'month'
+  ? [cur.slice(0,7) + '-01', monthLast(cur)]
+  : [weekStart(cur), shift(weekStart(cur), 6)];
+
+function save(date) {
+  const doc = dayOf(date);
+  if (!uid) return;
+  pending.add(date);
+  chain = chain
+    .then(async () => {
+      const { error } = await sb.from('days')
+        .upsert({ user_id: uid, date, items: doc.items, updated_at: new Date().toISOString() });
+      if (error) throw error;
+    })
+    .catch(e => showBanner('저장하지 못했습니다 — ' + e.message))
+    .finally(() => pending.delete(date));
+}
+
+// 원본을 그대로 올리면 월력에서 수십 장이 뜬다 — 본문용과 썸네일용을 따로 줄인다
+async function shrink(file, max, quality) {
+  const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+  const scale = Math.min(1, max / Math.max(bmp.width, bmp.height));
+  const cv = document.createElement('canvas');
+  cv.width = Math.round(bmp.width * scale);
+  cv.height = Math.round(bmp.height * scale);
+  cv.getContext('2d').drawImage(bmp, 0, 0, cv.width, cv.height);
+  bmp.close();
+  return new Promise(r => cv.toBlob(r, 'image/jpeg', quality));
+}
+
+async function upload(blob) {
+  const path = `${uid}/${crypto.randomUUID()}.jpg`;
+  const { error } = await sb.storage.from('photos')
+    .upload(path, blob, { contentType: 'image/jpeg' });
+  if (error) throw error;
+  return path;
+}
+
+// 적다 만 기록도 날짜를 옮기기 전에 원래 날짜로 넣는다
+async function addNote(date) {
+  const text = el('note').value.trim();
+  const pick = photoPick;
+  if (!text && !pick) return;
+
+  const it = { id: crypto.randomUUID(), text, time: null, kind: 'note' };
+  dayOf(date).items.push(it);
+  el('note').value = '';
+  if (pick) { photoPick = null; URL.revokeObjectURL(pick.url); uploading.add(it.id); }
+  renderPick();
+  save(date); render();
+
+  if (!pick) return;
+  try {
+    const [full, thumb] = await Promise.all([
+      shrink(pick.file, 1280, 0.82).then(upload),
+      shrink(pick.file, 240, 0.75).then(upload),
+    ]);
+    const target = findItem(date, it.id);
+    if (target) { target.photo = { full, thumb }; save(date); }
+  } catch (e) {
+    showBanner('사진을 올리지 못했습니다 — ' + e.message);
+  } finally {
+    uploading.delete(it.id);
+    render();
+  }
+}
+
+function renderPick() {
+  const box = el('photoPreview');
+  box.replaceChildren();
+  if (!photoPick) return;
+  const img = document.createElement('img');
+  img.src = photoPick.url; img.alt = '';
+  const rm = document.createElement('button');
+  rm.className = 'del'; rm.textContent = '\u00d7';
+  rm.setAttribute('aria-label', '사진 빼기');
+  rm.onclick = () => { URL.revokeObjectURL(photoPick.url); photoPick = null; renderPick(); };
+  const wrap = document.createElement('div');
+  wrap.className = 'pv'; wrap.append(img, rm);
+  box.append(wrap);
+}
+
+function go(date) {
+  addNote(cur);
+  cur = date;
+  sync(); render();
+}
+
+function showBanner(msg) {
+  el('banner').innerHTML = msg ? `<p class="banner"></p>` : '';
+  if (msg) el('banner').firstChild.textContent = msg;
+}
+
+function relLabel(d) {
+  const diff = Math.round((parse(d) - parse(todayStr())) / 86400000);
+  return { '-1':'어제', '0':'오늘', '1':'내일' }[String(diff)]
+    || (diff < 0 ? `${-diff}일 전` : `${diff}일 후`);
+}
+
+const SECTIONS = [
+  { match: i => i.kind !== 'note' && i.time },              // 일정
+  { match: i => i.kind !== 'note' && !i.time },             // 할 일
+  { match: i => i.kind === 'note', cls: ' notes' },         // 기록
+];
+
+function makeItem(it) {
+  const note = it.kind === 'note';
+  const editing = editingId === it.id;
+  const li = document.createElement('li');
+  li.className = (note ? 'note ' : (editing ? '' : 'tappable '))
+    + (it.done ? 'done ' : '') + (editing ? 'editing' : '');
+
+  let chk = null;
+  if (!note) {
+    chk = document.createElement('button');
+    chk.className = 'check'; chk.textContent = '\u2713';
+    chk.setAttribute('aria-pressed', String(!!it.done));
+    chk.setAttribute('aria-label', it.text + ' 완료');
+    if (!editing) li.onclick = e => {          // 줄 전체가 토글 영역
+      if (e.target.closest('input, .del, .edit')) return;
+      const t = findItem(cur, it.id);
+      if (!t) return;
+      t.done = !t.done; save(cur); render();
+    };
+  }
+
+  let time = null;
+  if (!note) {
+    time = document.createElement('input');
+    time.type = 'time';
+    time.className = 'time' + (it.time ? '' : ' unset');
+    time.value = it.time || '';
+    time.setAttribute('aria-label', '시간 (비우면 할 일)');
+    time.onchange = () => {
+      const t = findItem(cur, it.id);
+      if (!t) return;
+      t.time = time.value || null; save(cur); render();
+    };
+  }
+
+  if (editing) {
+    const field = document.createElement(note ? 'textarea' : 'input');
+    field.className = 'edit-in';
+    field.value = it.text;
+    field.setAttribute('aria-label', '내용 고치기');
+    field.onkeydown = e => {
+      if (e.key === 'Escape') { editingId = null; render(); }
+      if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+        e.preventDefault(); commitEdit(it.id, field.value);
+      }
+    };
+    field.onblur = () => { if (editingId === it.id) commitEdit(it.id, field.value); };
+    requestAnimationFrame(() => {
+      field.focus();
+      field.setSelectionRange(field.value.length, field.value.length);
+    });
+    li.append(...[chk, time, field].filter(Boolean));
+    return li;
+  }
+
+  const txt = document.createElement('span');
+  txt.className = 'txt';
+  if (note) {
+    const heart = document.createElement('span');
+    heart.className = 'heart'; heart.textContent = '\u2661';
+    txt.append(heart, document.createTextNode(it.text));
+    if (it.photo?.full) {
+      const img = document.createElement('img');
+      img.className = 'photo'; img.src = photoUrl(it.photo.full);
+      img.alt = ''; img.loading = 'lazy';
+      img.onerror = () => img.remove();
+      txt.append(img);
+    } else if (uploading.has(it.id)) {
+      const s = document.createElement('span');
+      s.className = 'uploading'; s.textContent = '사진 올리는 중…';
+      txt.append(s);
+    }
+  } else {
+    txt.textContent = it.text;
+  }
+
+  const edit = document.createElement('button');
+  edit.className = 'edit'; edit.textContent = '\u270e';
+  edit.setAttribute('aria-label', '고치기');
+  edit.onclick = () => { editingId = it.id; render(); };
+
+  const del = document.createElement('button');
+  del.className = 'del'; del.textContent = '\u00d7'; del.setAttribute('aria-label', '삭제');
+  del.onclick = () => {
+    const arr = dayOf(cur).items;
+    const i = arr.findIndex(x => x.id === it.id);
+    if (i < 0) return;
+    arr.splice(i, 1);
+    save(cur); render();
+  };
+
+  li.append(...[chk, time, txt, edit, del].filter(Boolean));
+  return li;
+}
+
+function dotsFor(d, max) {
+  const all = week[d]?.items || [];
+  const dots = document.createElement('span');
+  dots.className = 'dots';
+  const n = Math.min(all.filter(i => i.kind !== 'note').length, max);
+  for (let k = 0; k < n; k++) dots.insertAdjacentHTML('beforeend', '<i class="dot"></i>');
+  if (all.some(i => i.kind === 'note')) dots.insertAdjacentHTML('beforeend', '<i class="dot note"></i>');
+  return dots;
+}
+
+const thumbOf = d => (week[d]?.items || []).find(i => i.photo?.thumb)?.photo.thumb;
+
+function renderWeek() {
+  const start = weekStart(cur);
+  const strip = document.createElement('div');
+  strip.className = 'strip';
+  strip.append(...Array.from({length:7}, (_, i) => {
+    const d = shift(start, i);
+    const b = document.createElement('button');
+    b.className = 'day' + (d === cur ? ' sel' : '') + (d === todayStr() ? ' today' : '')
+      + (i === 0 ? ' sun' : '') + (HOLIDAYS[d] ? ' holiday' : '');
+    if (HOLIDAYS[d]) b.title = HOLIDAYS[d];
+    b.innerHTML = `<span>${DOW[i]}</span><span class="dn">${parse(d).getDate()}</span>`;
+    b.append(dotsFor(d, 3));
+    b.onclick = () => go(d);
+    return b;
+  }));
+  el('cal').replaceChildren(strip);
+}
+
+function renderMonth() {
+  const month = cur.slice(0, 7);
+  const first = weekStart(month + '-01');
+  const last = shift(weekStart(monthLast(cur)), 6);
+
+  const head = document.createElement('div');
+  head.className = 'mhead';
+  DOW.forEach(w => { const sp = document.createElement('span'); sp.textContent = w; head.append(sp); });
+
+  const grid = document.createElement('div');
+  grid.className = 'mgrid';
+  for (let d = first; ; d = shift(d, 1)) {
+    const b = document.createElement('button');
+    b.className = 'mday'
+      + (d.slice(0,7) !== month ? ' other' : '')
+      + (d === cur ? ' sel' : '')
+      + (d === todayStr() ? ' today' : '')
+      + (parse(d).getDay() === 0 ? ' sun' : '')
+      + (HOLIDAYS[d] ? ' holiday' : '');
+    if (HOLIDAYS[d]) b.title = HOLIDAYS[d];
+
+    const thumb = thumbOf(d);
+    if (thumb) {
+      b.classList.add('has-photo');
+      const img = document.createElement('img');
+      img.src = photoUrl(thumb); img.alt = ''; img.loading = 'lazy';
+      img.onerror = () => { img.remove(); b.classList.remove('has-photo'); };
+      b.append(img);
+    }
+    const dn = document.createElement('span');
+    dn.className = 'dn'; dn.textContent = parse(d).getDate();
+    b.append(dn, dotsFor(d, 2));
+    b.onclick = () => {
+      view = 'week';
+      try { localStorage.setItem('view', 'week'); } catch {}
+      go(d);
+    };
+    grid.append(b);
+    if (d === last) break;
+  }
+  el('cal').replaceChildren(head, grid);
+}
+
+function render() {
+  const c = parse(cur);
+  el('month').textContent = `${c.getFullYear()}년 ${c.getMonth()+1}월`;
+  el('viewBtn').textContent = view === 'week' ? '달력' : '주간';
+  document.querySelector('header').classList.toggle('month-view', view === 'month');
+  document.body.classList.toggle('month-mode', view === 'month');
+  view === 'week' ? renderWeek() : renderMonth();
+
+  el('title').textContent = `${c.getMonth()+1}월 ${c.getDate()}일 ${DOW[c.getDay()]}요일`;
+  el('rel').textContent = relLabel(cur);
+
+  const items = sortItems(dayOf(cur).items);
+  const list = el('list');
+  if (!items.length) {
+    list.innerHTML = '<p class="empty">아직 비어 있어요.</p>';
+    return;
+  }
+  list.replaceChildren(...SECTIONS.flatMap(sec => {
+    const group = items.filter(sec.match);
+    if (!group.length) return [];
+
+    const ul = document.createElement('ul');
+    ul.append(...group.map(makeItem));
+
+    const wrap = document.createElement('section');
+    wrap.className = 'sec' + (sec.cls || '');
+    wrap.append(ul);
+    return [wrap];
+  }));
+}
+
+// 보고 있는 범위를 한 번에 읽어온다 (실시간 대신, 화면에 돌아올 때 다시 읽는다)
+async function loadRange() {
+  if (!uid) return;
+  const [from, to] = range();
+  const { data, error } = await sb.from('days')
+    .select('date, items').gte('date', from).lte('date', to);
+  if (error) return showBanner('불러오지 못했습니다 — ' + error.message);
+
+  // 저장 대기 중인 내 편집은 덮어쓰지 않는다
+  for (const row of data) {
+    if (pending.has(row.date)) continue;
+    week[row.date] = { date: row.date, items: row.items || [] };
+  }
+  render();
+}
+
+function sync() {
+  const [from, to] = range();
+  const key = from + '~' + to;
+  if (!uid || key === subKey) return;
+  subKey = key;
+  loadRange();
+}
+
+// 다른 기기에서 쓴 내용을 화면에 돌아올 때 따라잡는다
+function refresh() {
+  if (!uid) return;
+  subKey = null;
+  sync();
+}
+
+el('form').onsubmit = e => {
+  e.preventDefault();
+  const text = el('text').value.trim();
+  if (!text) return;
+  dayOf(cur).items.push({ id: crypto.randomUUID(), text, time: el('time').value || null, done: false });
+  save(cur); render();
+  el('text').value = ''; el('time').value = '';
+  el('text').focus();
+};
+
+el('note').onkeydown = e => {
+  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+    e.preventDefault();
+    addNote(cur);
+  }
+};
+el('saveNote').onclick = () => { addNote(cur); el('note').focus(); };
+// 탭을 닫거나 가릴 때도 흘리지 않는다
+addEventListener('visibilitychange', () => { if (document.hidden) addNote(cur); });
+
+const step = n => view === 'month' ? addMonth(cur, n) : shift(cur, n * 7);
+el('prev').onclick = () => go(step(-1));
+el('next').onclick = () => go(step(1));
+el('today').onclick = () => go(todayStr());
+el('viewBtn').onclick = () => {
+  view = view === 'week' ? 'month' : 'week';
+  try { localStorage.setItem('view', view); } catch {}
+  sync(); render();
+};
+
+// 폰에서는 빈 곳을 눌러도 blur가 안 걸릴 때가 있다 — 바깥을 누르면 닫고 저장한다.
+// pointerdown이 아니라 click을 쓴다: 누른 대상의 처리가 끝난 뒤에 화면을 다시 그려야
+// 그 클릭이 사라진 요소에 걸려 먹히지 않는다.
+addEventListener('click', e => {
+  if (!editingId || e.target.closest('.edit-in, .edit')) return;
+  const field = document.querySelector('.edit-in');
+  if (field) commitEdit(editingId, field.value);
+});
+
+el('photoBtn').onclick = () => el('photoInput').click();
+el('photoInput').onchange = () => {
+  const f = el('photoInput').files[0];
+  el('photoInput').value = '';
+  if (!f) return;
+  if (photoPick) URL.revokeObjectURL(photoPick.url);
+  photoPick = { file: f, url: URL.createObjectURL(f) };
+  renderPick();
+};
+
+// ── 로그인 ──
+function gate(msg, bad) {
+  el('gate').hidden = false;
+  document.body.classList.add('locked');
+  el('gateMsg').textContent = msg || '';
+  el('gateMsg').classList.toggle('bad', !!bad);
+}
+
+async function start(session) {
+  uid = session.user.id;
+  el('gate').hidden = true;
+  document.body.classList.remove('locked');
+  el('photoBtn').hidden = false;
+  render();
+  await loadRange();
+}
+
+el('loginForm').onsubmit = async e => {
+  e.preventDefault();
+  const email = el('email').value.trim();
+  if (!email) return;
+  el('loginBtn').disabled = true;
+  el('gateMsg').classList.remove('bad');
+  el('gateMsg').textContent = '보내는 중…';
+  const { error } = await sb.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: location.href.split('#')[0] },
+  });
+  el('loginBtn').disabled = false;
+  if (error) {
+    el('gateMsg').textContent = '보내지 못했습니다 — ' + error.message;
+    el('gateMsg').classList.add('bad');
+  } else {
+    el('gateMsg').textContent = email + ' 으로 링크를 보냈습니다.\n메일을 열어 눌러 주세요.';
+  }
+};
+
+render();
+const { data: { session } } = await sb.auth.getSession();
+if (session) start(session); else gate();
+
+sb.auth.onAuthStateChange((event, s) => {
+  if (s && !uid) start(s);
+  else if (!s && uid) { uid = null; week = {}; subKey = null; gate('로그아웃되었습니다.'); }
+});
+
+addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+addEventListener('focus', refresh);
+</script>
