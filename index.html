@@ -387,6 +387,9 @@ const SUPABASE_KEY = 'sb_publishable_QGrahkpLkXcO_X5p7V0tBA_9k6aSMRa';
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 const photoUrl = path => `${SUPABASE_URL}/storage/v1/object/public/photos/${path}`;
 
+// 고친 내용이 바로 보이도록 (자세한 사정은 sw.js)
+navigator.serviceWorker?.register('sw.js').catch(() => {});
+
 for (const [name, content] of [['apple-mobile-web-app-title', '하루 한 장'],
                                ['apple-mobile-web-app-capable', 'yes'],
                                ['apple-mobile-web-app-status-bar-style', 'default']]) {
