@@ -393,7 +393,7 @@ textarea::placeholder{color:var(--dim); opacity:.7}
 <div class="bar">
   <form class="bar-in" id="form">
     <span class="timewrap" id="timewrap">
-      <input type="time" id="time" aria-label="시간 (비우면 할 일)">
+      <input type="time" id="time" aria-label="시간 (비우면 하루 종일)" autocomplete="off">
       <span class="ph">시간 선택</span>
     </span>
     <input type="text" id="text" placeholder="무엇을 할까요" autocomplete="off">
@@ -895,9 +895,12 @@ addEventListener('click', e => {
   if (field) commitEdit(editingId, field.value);
 });
 
+// Safari가 새로고침 때 이전 값을 되살려 놓는다. 라벨에 가려 안 보인 채로
+// 딸려 들어가므로, 들어올 때마다 비우고 값 유무를 다시 맞춘다.
 const markTime = () => el('timewrap').classList.toggle('filled', !!el('time').value);
-el('time').oninput = markTime;
-el('time').onchange = markTime;
+el('time').value = '';
+for (const ev of ['input', 'change', 'blur', 'focus']) el('time').addEventListener(ev, markTime);
+addEventListener('pageshow', () => { el('time').value = ''; markTime(); });
 markTime();
 
 el('photoBtn').onclick = () => el('photoInput').click();
