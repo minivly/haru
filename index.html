@@ -283,19 +283,12 @@ textarea::placeholder{color:var(--dim); opacity:.7}
   max-width:540px; margin:0 auto; display:flex; gap:8px; align-items:center;
   background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:8px 14px 8px 10px;
 }
-/* iOS는 값이 없는 시간 입력을 빈칸으로 그린다 — 라벨을 깔아 자리를 알려준다 */
-.timewrap{position:relative; flex:none; display:flex; width:94px}
-.bar input[type=time]{
-  width:100%; border:none; background:none; color:var(--dim);
-  font-size:17px; font-variant-numeric:tabular-nums; padding:0;
+#time{
+  flex:none; width:84px; border:none; background:none; color:var(--accent);
+  font-size:17px; font-variant-numeric:tabular-nums; padding:0; text-align:left;
 }
-.timewrap:not(.filled) input[type=time]{color:transparent}
-.timewrap .ph{
-  position:absolute; left:0; top:50%; transform:translateY(-50%);
-  pointer-events:none; color:var(--dim); font-size:16px; white-space:nowrap;
-}
-.timewrap.filled .ph, .timewrap:focus-within .ph{display:none}
-.timewrap:focus-within input[type=time], .bar input[type=time]:focus{color:var(--accent)}
+#time::placeholder{color:var(--dim); opacity:.9}
+#time:focus{outline:none}
 .bar input[type=text]{
   flex:1; border:none; background:none; min-width:0; padding:4px 0 4px 12px;
   border-left:1px solid var(--line);
@@ -394,10 +387,8 @@ textarea::placeholder{color:var(--dim); opacity:.7}
 
 <div class="bar">
   <form class="bar-in" id="form" novalidate>
-    <span class="timewrap" id="timewrap">
-      <input type="time" id="time" aria-label="시간 (비우면 하루 종일)" autocomplete="off">
-      <span class="ph">시간 선택</span>
-    </span>
+    <input type="text" id="time" placeholder="시간" aria-label="시간 (비우면 하루 종일)"
+           inputmode="numeric" maxlength="5" autocomplete="off">
     <input type="text" id="text" placeholder="무엇을 할까요" autocomplete="off">
   </form>
 </div>
@@ -409,6 +400,22 @@ const SUPABASE_URL = 'https://uexetbzmpfqnrjzdnmfz.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QGrahkpLkXcO_X5p7V0tBA_9k6aSMRa';
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 const photoUrl = path => `${SUPABASE_URL}/storage/v1/object/public/photos/${path}`;
+
+// 숫자만 받아 시각으로 읽는다. 오전/오후를 따로 고르지 않아도 되게 24시간으로 친다.
+function parseTime(raw) {
+  const d = (raw || '').replace(/\D/g, '');
+  if (!d) return null;
+  const h = d.length <= 2 ? +d : +d.slice(0, d.length - 2);
+  const m = d.length <= 2 ? 0 : +d.slice(-2);
+  if (h > 23 || m > 59) return null;
+  return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+}
+
+// 넣을 때는 24시간(1430), 보일 때는 오후 2:30
+const timeLabel = t => {
+  const [h, m] = t.split(':').map(Number);
+  return `${h < 12 ? '오전' : '오후'} ${h % 12 || 12}:${String(m).padStart(2, '0')}`;
+};
 
 // 고친 내용이 바로 보이도록 (자세한 사정은 sw.js)
 navigator.serviceWorker?.register('sw.js').catch(() => {});
@@ -872,14 +879,13 @@ el('form').onsubmit = e => {
   e.preventDefault();
   const text = el('text').value.trim();
   if (!text) return;
-  const t = el('time');
   dayOf(cur).items.push({
     id: crypto.randomUUID(), text,
-    time: t.validity.valid ? (t.value || null) : null,   // 덜 채운 시간은 하루 종일로
+    time: timeValue ?? parseTime(el('time').value),   // 칸을 안 떠난 채 엔터를 쳐도 잡히게
     done: false,
   });
   save(cur); render();
-  el('text').value = ''; el('time').value = ''; markTime();
+  el('text').value = ''; clearTime();
   el('text').focus();
 };
 
@@ -913,13 +919,28 @@ addEventListener('click', e => {
   if (field) commitEdit(editingId, field.value);
 });
 
-// Safari가 새로고침 때 이전 값을 되살려 놓는다. 라벨에 가려 안 보인 채로
-// 딸려 들어가므로, 들어올 때마다 비우고 값 유무를 다시 맞춘다.
-const markTime = () => el('timewrap').classList.toggle('filled', !!el('time').value);
+// Safari가 새로고침 때 이전 값을 되살려 놓는다 — 들어올 때마다 비운다
 el('time').value = '';
-for (const ev of ['input', 'change', 'blur', 'focus']) el('time').addEventListener(ev, markTime);
-addEventListener('pageshow', () => { el('time').value = ''; markTime(); });
-markTime();
+addEventListener('pageshow', () => { el('time').value = ''; });
+
+let timeValue = null;                  // 실제로 저장할 값 ("14:30")
+
+el('time').oninput = () => {
+  let d = el('time').value.replace(/\D/g, '').slice(0, 4);
+  el('time').value = d.length > 2 ? d.slice(0, 2) + ':' + d.slice(2) : d;
+};
+el('time').onkeydown = e => {
+  if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); el('text').focus(); }
+};
+el('time').onfocus = () => {           // 고칠 때는 다시 숫자로
+  el('time').value = timeValue ? timeValue.replace(':', '') : '';
+};
+el('time').onblur = () => {            // 칸을 떠나면 오전/오후로 읽어준다
+  timeValue = parseTime(el('time').value);
+  el('time').value = timeValue ? timeLabel(timeValue) : '';
+};
+
+function clearTime() { timeValue = null; el('time').value = ''; }
 
 el('photoBtn').onclick = () => el('photoInput').click();
 el('photoInput').onchange = () => {
