@@ -391,7 +391,7 @@ textarea::placeholder{color:var(--dim); opacity:.7}
 </div>
 
 <div class="bar">
-  <form class="bar-in" id="form">
+  <form class="bar-in" id="form" novalidate>
     <span class="timewrap" id="timewrap">
       <input type="time" id="time" aria-label="시간 (비우면 하루 종일)" autocomplete="off">
       <span class="ph">시간 선택</span>
@@ -860,7 +860,12 @@ el('form').onsubmit = e => {
   e.preventDefault();
   const text = el('text').value.trim();
   if (!text) return;
-  dayOf(cur).items.push({ id: crypto.randomUUID(), text, time: el('time').value || null, done: false });
+  const t = el('time');
+  dayOf(cur).items.push({
+    id: crypto.randomUUID(), text,
+    time: t.validity.valid ? (t.value || null) : null,   // 덜 채운 시간은 하루 종일로
+    done: false,
+  });
   save(cur); render();
   el('text').value = ''; el('time').value = ''; markTime();
   el('text').focus();
