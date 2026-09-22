@@ -932,6 +932,13 @@ el('time').oninput = () => {
 el('time').onkeydown = e => {
   if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); el('text').focus(); }
 };
+el('text').onkeydown = e => {          // 내용 칸에서 엔터 = 등록
+  if (e.key === 'Enter' && !e.isComposing) {
+    e.preventDefault();
+    el('form').requestSubmit();
+  }
+};
+
 el('time').onfocus = () => {           // 고칠 때는 다시 숫자로
   el('time').value = timeValue ? timeValue.replace(':', '') : '';
 };
