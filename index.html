@@ -221,10 +221,16 @@ li.done .check{background:var(--accent-soft); border-color:transparent; color:va
 }
 input.time{cursor:pointer}
 input[type=time]::-webkit-calendar-picker-indicator{display:none}
-input.time.unset{
-  color:var(--dim); border:1px dashed var(--line); border-radius:8px; padding:0 6px;
+.rowtime{position:relative; flex:none; display:flex; width:82px}
+.rowtime input.time{width:100%}
+.rowtime:not(.filled) input.time{color:transparent}
+.rowtime .rph{
+  position:absolute; left:0; top:1px; pointer-events:none;
+  color:var(--dim); font-size:16px; white-space:nowrap;
 }
-input.time.unset:hover, input.time:focus{color:var(--accent); border-color:var(--accent)}
+.rowtime.filled .rph, .rowtime:focus-within .rph{display:none}
+.rowtime:focus-within input.time{color:var(--accent)}
+li.done .rph{color:var(--done)}
 .txt{flex:1; word-break:break-word; padding-top:1px}
 li.done .txt{color:var(--done); text-decoration:line-through; text-decoration-color:var(--accent)}
 li.done .time{color:var(--done)}
@@ -342,7 +348,7 @@ textarea::placeholder{color:var(--dim); opacity:.7}
   <div id="list"></div>
 
   <div class="note-wrap">
-    <div class="label">그날의 기록</div>
+    <div class="label">하루 기록</div>
     <textarea id="note" placeholder="오늘 어땠는지 한두 줄."></textarea>
     <div id="photoPreview"></div>
     <div class="note-foot">
@@ -636,16 +642,23 @@ function makeItem(it) {
 
   let time = null;
   if (!note) {
-    time = document.createElement('input');
-    time.type = 'time';
-    time.className = 'time' + (it.time ? '' : ' unset');
-    time.value = it.time || '';
-    time.setAttribute('aria-label', '시간 (비우면 할 일)');
-    time.onchange = () => {
+    const field = document.createElement('input');
+    field.type = 'time';
+    field.className = 'time';
+    field.value = it.time || '';
+    field.setAttribute('aria-label', it.time ? '시간' : '하루 종일 (시간을 넣으면 일정이 됩니다)');
+    field.onchange = () => {
       const t = findItem(cur, it.id);
       if (!t) return;
-      t.time = time.value || null; save(cur); render();
+      t.time = field.value || null; save(cur); render();
     };
+
+    const ph = document.createElement('span');
+    ph.className = 'rph'; ph.textContent = '하루 종일';
+
+    time = document.createElement('span');
+    time.className = 'rowtime' + (it.time ? ' filled' : '');
+    time.append(field, ph);
   }
 
   if (editing) {
