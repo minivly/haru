@@ -891,11 +891,26 @@ el('photoBtn').onclick = () => el('photoInput').click();
 el('photoInput').onchange = () => {
   const f = el('photoInput').files[0];
   el('photoInput').value = '';
-  if (!f) return;
-  if (photoPick) URL.revokeObjectURL(photoPick.url);
-  photoPick = { file: f, url: URL.createObjectURL(f) };
-  renderPick();
+  if (f) pickPhoto(f);
 };
+
+function pickPhoto(file) {
+  if (photoPick) URL.revokeObjectURL(photoPick.url);
+  photoPick = { file, url: URL.createObjectURL(file) };
+  renderPick();
+}
+
+// 클립보드에 그림이 있으면 붙여넣기로도 첨부된다 (글자 붙여넣기는 그대로 둔다)
+addEventListener('paste', e => {
+  if (document.body.classList.contains('locked')) return;   // 로그인 전에는 무시
+  const img = [...(e.clipboardData?.items || [])].find(i => i.type.startsWith('image/'));
+  if (!img) return;
+  const file = img.getAsFile();
+  if (!file) return;
+  e.preventDefault();
+  pickPhoto(file);
+  el('note').focus();
+});
 
 // ── 로그인 ──
 function gate(msg, bad) {
