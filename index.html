@@ -49,25 +49,34 @@ button{background:none;border:none;cursor:pointer;padding:0}
 .wrap{max-width:720px; margin:0 auto; padding:0 14px 140px}
 
 /* ── 계정 ── */
-.account{
-  display:flex; flex-wrap:wrap; align-items:center; gap:10px;
-  margin-top:38px; padding-top:16px; border-top:1px solid var(--line-soft);
-  font-size:15px; color:var(--dim);
+.account{margin-top:40px; padding-top:18px; border-top:1px solid var(--line-soft)}
+.avatar{
+  width:36px; height:36px; border-radius:50%; display:grid; place-items:center;
+  background:var(--surface); border:1px solid var(--line);
+  color:var(--dim); font-size:17px; line-height:1;
 }
-.account button{color:var(--dim); font-size:15px; text-decoration:underline;
-  text-underline-offset:3px; text-decoration-color:var(--line)}
-.account button:hover{color:var(--accent)}
-.account form{display:flex; gap:8px; width:100%; margin-top:4px}
-.account form[hidden]{display:none}
-.account input{
+.avatar:hover{border-color:var(--accent); color:var(--accent)}
+.avatar[aria-expanded="true"]{border-color:var(--accent); color:var(--accent)}
+
+.acc-menu{margin-top:14px; font-size:15px; color:var(--dim)}
+.acc-menu[hidden]{display:none}
+.acc-who{display:block; margin-bottom:8px}
+.acc-acts{display:flex; gap:14px}
+.acc-acts button{
+  color:var(--dim); font-size:15px; text-decoration:underline;
+  text-underline-offset:3px; text-decoration-color:var(--line);
+}
+.acc-acts button:hover{color:var(--accent)}
+.acc-menu form{display:flex; gap:8px; max-width:330px; margin-top:12px}
+.acc-menu form[hidden]{display:none}
+.acc-menu input{
   flex:1; min-width:0; background:var(--surface); border:1px solid var(--line);
   border-radius:10px; padding:7px 12px; font-size:16px;
 }
-.account form button{
+.acc-menu form button{
   flex:none; border:1px solid var(--line); border-radius:10px; padding:7px 14px;
-  text-decoration:none;
 }
-.account-msg{width:100%; margin:2px 0 0; font-size:15px}
+.account-msg{margin:10px 0 0; font-size:15px}
 .account-msg.bad{color:var(--accent)}
 .month-mode .account{display:none}
 
@@ -357,16 +366,21 @@ textarea::placeholder{color:var(--dim); opacity:.7}
     <input type="file" id="photoInput" accept="image/*" hidden>
   </div>
 
-  <div class="account">
-    <span id="who"></span>
-    <button id="pwToggle">비밀번호 바꾸기</button>
-    <button id="logout">로그아웃</button>
-    <form id="pwForm" hidden>
-      <input type="password" id="newPw" placeholder="새 비밀번호 (6자 이상)"
-             autocomplete="new-password" minlength="6" required>
-      <button type="submit">저장</button>
-    </form>
-    <p class="account-msg" id="pwMsg"></p>
+  <div class="account" id="account">
+    <button class="avatar" id="avatarBtn" aria-expanded="false" aria-label="계정"></button>
+    <div class="acc-menu" id="accMenu" hidden>
+      <span class="acc-who" id="who"></span>
+      <div class="acc-acts">
+        <button id="pwToggle">비밀번호 바꾸기</button>
+        <button id="logout">로그아웃</button>
+      </div>
+      <form id="pwForm" hidden>
+        <input type="password" id="newPw" placeholder="새 비밀번호 (6자 이상)"
+               autocomplete="new-password" minlength="6" required>
+        <button type="submit">저장</button>
+      </form>
+      <p class="account-msg" id="pwMsg"></p>
+    </div>
   </div>
 </div>
 
@@ -897,6 +911,7 @@ async function start(session) {
   document.body.classList.remove('locked');
   el('photoBtn').hidden = false;
   el('who').textContent = session.user.email;
+  el('avatarBtn').textContent = (session.user.email[0] || '?').toUpperCase();
   render();
   await loadRange();
 }
@@ -920,6 +935,26 @@ el('loginForm').onsubmit = async e => {
 };
 
 // ── 계정 ──
+function closeAcc() {
+  el('accMenu').hidden = true;
+  el('avatarBtn').setAttribute('aria-expanded', 'false');
+  el('pwForm').hidden = true;
+  el('pwMsg').textContent = '';
+}
+
+el('avatarBtn').onclick = () => {
+  const open = el('accMenu').hidden;
+  if (open) {
+    el('accMenu').hidden = false;
+    el('avatarBtn').setAttribute('aria-expanded', 'true');
+  } else closeAcc();
+};
+
+// 바깥을 누르면 접는다
+addEventListener('click', e => {
+  if (!el('accMenu').hidden && !e.target.closest('#account')) closeAcc();
+});
+
 el('pwToggle').onclick = () => {
   const f = el('pwForm');
   f.hidden = !f.hidden;
