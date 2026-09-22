@@ -235,6 +235,8 @@ li.done .rph{color:var(--done)}
 li.done .txt{color:var(--done); text-decoration:line-through; text-decoration-color:var(--accent)}
 li.done .time{color:var(--done)}
 .del{flex:none; color:var(--dim); font-size:19px; padding:0 4px; line-height:1.3}
+.del.asking{color:var(--accent); font-size:16px; text-decoration:underline;
+  text-underline-offset:3px; white-space:nowrap}
 .edit{flex:none; color:var(--dim); font-size:17px; padding:0 3px; line-height:1.5}
 .del:hover, .edit:hover{color:var(--accent)}
 .edit-in{
@@ -494,6 +496,7 @@ let view = 'week';
 try { view = localStorage.getItem('view') === 'month' ? 'month' : 'week'; } catch {}
 let subKey = null;
 let editingId = null;            // 지금 고쳐 쓰는 항목
+let confirmDel = null;           // 지우기 전에 한 번 더 확인할 항목
 let photoPick = null;            // 저장 전에 고른 사진 (아직 업로드 안 함)
 const uploading = new Set();     // 업로드 중인 기록 id
 let week = {};              // 'YYYY-MM-DD' -> {date, items, note}
@@ -707,9 +710,18 @@ function makeItem(it) {
   edit.setAttribute('aria-label', '고치기');
   edit.onclick = () => { editingId = it.id; render(); };
 
+  const asking = confirmDel === it.id;
   const del = document.createElement('button');
-  del.className = 'del'; del.textContent = '\u00d7'; del.setAttribute('aria-label', '삭제');
+  del.className = 'del' + (asking ? ' asking' : '');
+  del.textContent = asking ? '지울까요?' : '\u00d7';
+  del.setAttribute('aria-label', asking ? '정말 지우기' : '지우기');
   del.onclick = () => {
+    if (!asking) {                       // 한 번 더 눌러야 지워진다
+      confirmDel = it.id;
+      render();
+      return;
+    }
+    confirmDel = null;
     const arr = dayOf(cur).items;
     const i = arr.findIndex(x => x.id === it.id);
     if (i < 0) return;
@@ -895,6 +907,7 @@ el('viewBtn').onclick = () => {
 // pointerdown이 아니라 click을 쓴다: 누른 대상의 처리가 끝난 뒤에 화면을 다시 그려야
 // 그 클릭이 사라진 요소에 걸려 먹히지 않는다.
 addEventListener('click', e => {
+  if (confirmDel && !e.target.closest('.del')) { confirmDel = null; render(); }
   if (!editingId || e.target.closest('.edit-in, .edit')) return;
   const field = document.querySelector('.edit-in');
   if (field) commitEdit(editingId, field.value);
