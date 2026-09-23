@@ -513,6 +513,19 @@ const el = id => document.getElementById(id);
 const todayStr = () => ymd(new Date());
 
 let uid = null;
+let loaded = false;              // 서버나 저장본에서 한 번이라도 불러왔는가
+
+// 새로고침 직후 빈 화면을 없애려고, 마지막으로 본 내용을 기기에 남겨 둔다
+const cacheKey = () => 'haru-days-' + uid;
+function keepCopy() {
+  try { localStorage.setItem(cacheKey(), JSON.stringify(week)); } catch {}
+}
+function restoreCopy() {
+  try {
+    const raw = localStorage.getItem(cacheKey());
+    if (raw) { week = JSON.parse(raw); loaded = true; }
+  } catch {}
+}
 let cur = todayStr();
 let view = 'week';
 try { view = localStorage.getItem('view') === 'month' ? 'month' : 'week'; } catch {}
@@ -547,6 +560,7 @@ function save(date) {
   const doc = dayOf(date);
   if (!uid) return;
   pending.add(date);
+  keepCopy();
   chain = chain
     .then(async () => {
       const { error } = await sb.from('days')
@@ -842,7 +856,7 @@ function render() {
   const items = sortItems(dayOf(cur).items);
   const list = el('list');
   if (!items.length) {
-    list.innerHTML = '<p class="empty">아직 비어 있어요.</p>';
+    list.innerHTML = loaded ? '<p class="empty">아직 비어 있어요.</p>' : '';
     return;
   }
   list.replaceChildren(...SECTIONS.flatMap(sec => {
@@ -872,6 +886,8 @@ async function loadRange() {
     if (pending.has(row.date)) continue;
     week[row.date] = { date: row.date, items: row.items || [] };
   }
+  loaded = true;
+  keepCopy();
   render();
 }
 
@@ -1085,6 +1101,7 @@ async function start(session) {
   el('photoBtn').hidden = false;
   el('who').textContent = session.user.email;
   el('avatarBtn').textContent = (session.user.email[0] || '?').toUpperCase();
+  restoreCopy();
   render();
   await loadRange();
 }
@@ -1152,6 +1169,7 @@ el('pwForm').onsubmit = async e => {
 };
 
 el('logout').onclick = async () => {
+  try { localStorage.removeItem(cacheKey()); } catch {}
   await sb.auth.signOut();
   location.reload();
 };
