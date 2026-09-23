@@ -992,6 +992,8 @@ if (window.visualViewport) {
 addEventListener('pointerdown', e => {
   const a = document.activeElement;
   if ((a === el('text') || a === el('time')) && !e.target.closest('.bar')) a.blur();
+  // 하루 기록 칸도 같다 — 칸·사진·저장 버튼이 있는 기록 영역 바깥을 누르면 닫는다
+  if (a === el('note') && !e.target.closest('.note-wrap')) a.blur();
 });
 
 // 맨 위에서 아래로 길게 당기면 새로고침 (홈 화면 웹앱에는 이 기능이 없다)
