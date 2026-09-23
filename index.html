@@ -877,6 +877,8 @@ function refresh() {
 
 el('form').onsubmit = e => {
   e.preventDefault();
+  const y = scrollY;
+  requestAnimationFrame(() => scrollTo(0, y));
   const text = el('text').value.trim();
   if (!text) return;
   dayOf(cur).items.push({
@@ -886,7 +888,7 @@ el('form').onsubmit = e => {
   });
   save(cur); render();
   el('text').value = ''; clearTime();
-  el('text').focus();
+  el('text').focus({ preventScroll: true });
 };
 
 el('note').onkeydown = e => {
@@ -930,8 +932,32 @@ el('time').oninput = () => {
   el('time').value = d.length > 2 ? d.slice(0, 2) + ':' + d.slice(2) : d;
 };
 el('time').onkeydown = e => {
-  if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); el('text').focus(); }
+  if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); el('text').focus({ preventScroll: true }); }
 };
+// iOS는 화면 아래 고정된 입력칸을 누르면 페이지를 맨 아래로 끌어내린다.
+// 누르기 직전 위치를 기억해 두었다가 되돌린다.
+let holdY = null;
+const bar = document.querySelector('.bar');
+const remember = () => { holdY = scrollY; };
+bar.addEventListener('touchstart', remember, { passive: true });
+bar.addEventListener('mousedown', remember);
+bar.addEventListener('focusin', () => {
+  if (holdY == null) return;
+  const y = holdY;
+  for (const ms of [0, 60, 200, 450]) setTimeout(() => scrollTo(0, y), ms);
+});
+
+// 키보드가 올라오면 입력바를 키보드 바로 위로 붙인다 (페이지를 끌어내리지 않아도 보이게)
+if (window.visualViewport) {
+  const vv = window.visualViewport;
+  const place = () => {
+    const lift = innerHeight - (vv.height + vv.offsetTop);
+    bar.style.transform = lift > 1 ? `translateY(${-lift}px)` : '';
+  };
+  vv.addEventListener('resize', place);
+  vv.addEventListener('scroll', place);
+}
+
 el('text').onkeydown = e => {          // 내용 칸에서 엔터 = 등록
   if (e.key === 'Enter' && !e.isComposing) {
     e.preventDefault();
