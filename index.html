@@ -80,6 +80,15 @@ button{background:none;border:none;cursor:pointer;padding:0}
 .account-msg.bad{color:var(--accent)}
 .month-mode .account{display:none}
 
+/* ── 당겨서 새로고침 (홈 화면 웹앱엔 기본 기능이 없다) ── */
+.ptr{
+  position:fixed; left:50%; top:calc(env(safe-area-inset-top, 0px) + 10px); z-index:30;
+  transform:translate(-50%, -60px); opacity:0; pointer-events:none;
+  padding:6px 14px; border-radius:999px; font-size:15px;
+  background:var(--surface); color:var(--dim); border:1px solid var(--line);
+}
+.ptr.ready{color:var(--accent); border-color:var(--accent)}
+
 /* ── 로그인 ── */
 .gate{
   position:fixed; inset:0; z-index:20; display:grid; place-items:center;
@@ -976,6 +985,38 @@ addEventListener('pointerdown', e => {
   const a = document.activeElement;
   if ((a === el('text') || a === el('time')) && !e.target.closest('.bar')) a.blur();
 });
+
+// 맨 위에서 아래로 길게 당기면 새로고침 (홈 화면 웹앱에는 이 기능이 없다)
+{
+  const ptr = document.createElement('div');
+  ptr.className = 'ptr';
+  document.body.append(ptr);
+  const NEED = 90;                     // 이만큼 당기면 놓았을 때 새로고침
+  let startY = null, pulled = 0;
+  const show = () => {
+    const k = Math.min(pulled / NEED, 1);
+    ptr.style.opacity = k;
+    ptr.style.transform = `translate(-50%, ${-60 + 60 * k}px)`;
+    ptr.textContent = pulled >= NEED ? '놓으면 새로고침' : '당겨서 새로고침';
+    ptr.classList.toggle('ready', pulled >= NEED);
+  };
+  const reset = () => { startY = null; pulled = 0; ptr.style.opacity = 0; ptr.style.transform = ''; };
+  addEventListener('touchstart', e => {
+    startY = (scrollY <= 0 && e.touches.length === 1 && !e.target.closest('input, textarea, .bar'))
+      ? e.touches[0].clientY : null;
+  }, { passive: true });
+  addEventListener('touchmove', e => {
+    if (startY == null) return;
+    if (scrollY > 0) return reset();
+    pulled = Math.max(0, e.touches[0].clientY - startY);
+    show();
+  }, { passive: true });
+  addEventListener('touchend', () => {
+    if (startY == null) return;
+    if (pulled >= NEED) { ptr.textContent = '새로고침 중…'; location.reload(); }
+    else reset();
+  });
+}
 
 el('text').onkeydown = e => {          // 내용 칸에서 엔터 = 등록
   if (e.key === 'Enter' && !e.isComposing) {
