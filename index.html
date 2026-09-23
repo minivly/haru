@@ -290,6 +290,8 @@ textarea::placeholder{color:var(--dim); opacity:.7}
 }
 /* 키보드가 올라오면 홈 바 자리 여백은 필요 없다 */
 .bar.kb{padding-bottom:6px}
+.bar{transition:opacity .18s ease}
+.bar.moving{opacity:0; transition:none}
 /* 위치가 조금 어긋나도 뒤 내용이 비치지 않게 아래를 배경으로 덮는다 */
 .bar.kb::after{content:''; position:absolute; left:0; right:0; top:100%; height:120px; background:var(--bg)}
 .bar-in{
@@ -948,23 +950,22 @@ el('time').onkeydown = e => {
   if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); el('text').focus({ preventScroll: true }); }
 };
 // iOS는 화면 아래 고정된 입력칸을 누르면 페이지를 맨 아래로 끌어내린다.
-// 누르기 직전 위치를 기억해 두었다가 되돌린다.
-let holdY = null;
+// 탭을 가로채 스크롤 없이 직접 포커스를 주면 페이지가 끌려가지 않는다.
 const bar = document.querySelector('.bar');
-const remember = () => { holdY = scrollY; };
-bar.addEventListener('touchstart', remember, { passive: true });
-bar.addEventListener('mousedown', remember);
-bar.addEventListener('focusin', () => {
-  if (holdY == null) return;
-  const y = holdY;
-  for (const ms of [0, 60, 200, 450]) setTimeout(() => scrollTo(0, y), ms);
-});
+for (const f of [el('time'), el('text')]) {
+  f.addEventListener('touchend', e => {
+    if (document.activeElement === f) return;       // 이미 입력 중이면 커서 이동은 그대로
+    e.preventDefault();
+    f.focus({ preventScroll: true });
+  });
+}
 
-// 키보드가 올라오면 입력바를 키보드 바로 위로 붙인다 (페이지를 끌어내리지 않아도 보이게)
+// 키보드가 올라오고 내려가는 동안엔 입력바를 잠깐 감췄다가,
+// 제자리(보이는 영역 아래 끝)에 놓인 뒤 부드럽게 드러낸다.
+// innerHeight는 Safari 툴바 자리까지 포함할 때가 있어 쓰지 않는다.
 if (window.visualViewport) {
   const vv = window.visualViewport;
-  // innerHeight는 Safari 툴바 자리까지 포함할 때가 있어 쓰지 않는다.
-  // 보이는 영역의 아래 끝(offsetTop + height)에 입력바 아래 끝을 맞춘다.
+  let settle = 0;
   const place = () => {
     const kb = vv.height < innerHeight * 0.8;         // 키보드가 떠 있다
     bar.classList.toggle('kb', kb);
@@ -976,8 +977,15 @@ if (window.visualViewport) {
       bar.style.bottom = '';
     }
   };
-  vv.addEventListener('resize', place);
+  const moving = () => {
+    bar.classList.add('moving');
+    clearTimeout(settle);
+    settle = setTimeout(() => { place(); bar.classList.remove('moving'); }, 140);
+  };
+  vv.addEventListener('resize', () => { place(); moving(); });
   vv.addEventListener('scroll', place);
+  bar.addEventListener('focusin', moving);
+  bar.addEventListener('focusout', moving);
 }
 
 // 키보드가 열린 채 입력바 바깥을 누르면 닫는다 (누른 곳의 동작은 그대로 일어난다)
