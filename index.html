@@ -281,6 +281,8 @@ textarea::placeholder{color:var(--dim); opacity:.7}
 }
 /* 키보드가 올라오면 홈 바 자리 여백은 필요 없다 */
 .bar.kb{padding-bottom:6px}
+/* 위치가 조금 어긋나도 뒤 내용이 비치지 않게 아래를 배경으로 덮는다 */
+.bar.kb::after{content:''; position:absolute; left:0; right:0; top:100%; height:120px; background:var(--bg)}
 .bar-in{
   max-width:540px; margin:0 auto; display:flex; gap:8px; align-items:center;
   background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:8px 14px 8px 10px;
@@ -952,10 +954,18 @@ bar.addEventListener('focusin', () => {
 // 키보드가 올라오면 입력바를 키보드 바로 위로 붙인다 (페이지를 끌어내리지 않아도 보이게)
 if (window.visualViewport) {
   const vv = window.visualViewport;
+  // innerHeight는 Safari 툴바 자리까지 포함할 때가 있어 쓰지 않는다.
+  // 보이는 영역의 아래 끝(offsetTop + height)에 입력바 아래 끝을 맞춘다.
   const place = () => {
-    const lift = innerHeight - (vv.height + vv.offsetTop);
-    bar.style.transform = lift > 1 ? `translateY(${-lift}px)` : '';
-    bar.classList.toggle('kb', lift > 80);          // 키보드가 떠 있다
+    const kb = vv.height < innerHeight * 0.8;         // 키보드가 떠 있다
+    bar.classList.toggle('kb', kb);
+    if (kb) {
+      bar.style.top = `${vv.offsetTop + vv.height - bar.offsetHeight}px`;
+      bar.style.bottom = 'auto';
+    } else {
+      bar.style.top = '';
+      bar.style.bottom = '';
+    }
   };
   vv.addEventListener('resize', place);
   vv.addEventListener('scroll', place);
