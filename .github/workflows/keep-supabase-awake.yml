@@ -1,1 +1,26 @@
-C:\Users\cyj7662\haru\.github\workflows\keep-supabase-awake.yml
+# Supabase 무료 프로젝트는 일주일쯤 조용하면 일시정지된다.
+# 사흘마다 days 테이블을 한 번 조회해서 깨어 있게 한다.
+# 키는 index.html에 이미 공개된 publishable 키라 따로 숨기지 않는다.
+name: Supabase 깨워 두기
+
+on:
+  schedule:
+    - cron: '0 0 */3 * *'   # 사흘마다 09:00 (KST)
+  workflow_dispatch:         # Actions 탭에서 손으로도 돌릴 수 있게
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: days 테이블 조회
+        env:
+          SUPABASE_URL: https://uexetbzmpfqnrjzdnmfz.supabase.co
+          SUPABASE_KEY: sb_publishable_QGrahkpLkXcO_X5p7V0tBA_9k6aSMRa
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 \
+            -H "apikey: $SUPABASE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_KEY" \
+            "$SUPABASE_URL/rest/v1/days?select=date&limit=1")
+          echo "응답: $code"
+          # 실패하면 Actions가 빨갛게 표시되고 메일이 온다 — 정지됐다는 신호
+          test "$code" = 200
